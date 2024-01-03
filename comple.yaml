@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: nginx
+        image: ariari50/web:3.0
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: 200m
+            memory: 50Mi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: was
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: was
+  template:
+    metadata:
+      labels:
+        app: was
+    spec:
+      containers:
+      - name: tomcat
+        image: ariari50/was:2.3
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            cpu: 200m
+            memory: 50Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-svc
+spec:
+  type: NodePort
+  clusterIP: 10.100.100.200
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+    nodePort: 31000
+  selector:
+    app: web
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: was-svc
+spec:
+  type: ClusterIP
+  clusterIP: 10.100.100.10
+  selector:
+    app: was
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web-hpa
+spec:
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 40
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: web
+
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: was-hpa
+spec:
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 40
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: was
